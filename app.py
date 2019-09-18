@@ -2,6 +2,12 @@ from pushbullet import PushBullet
 import json
 import os
 from dotenv import load_dotenv
+from flask import Flask
+import requests
+from flask import Flask, request, render_template, Response
+from werkzeug import secure_filename
+
+app = Flask(__name__)
 load_dotenv()
 
 APIKEY = os.environ.get("APIKEY")
@@ -26,4 +32,40 @@ def getPushUrl(file_address = None):
     else:
         raise Exception("No Channel Setup")
 
-print(getPushUrl("link.png"))
+@app.route('/')
+def start():
+    return "Hello"
+
+@app.route('/test')
+def test():
+    link = getPushUrl("link.png")
+    return link
+
+@app.route('/uploader', methods = ['POST'])
+def upload_file():
+    print(request.files)
+    f = request.files['file']
+    print(f)
+    name  = str(int(time.time()))
+    ext = str(f.filename).split(".")[-1]
+    path = os.path.join(os.environ.get['UPLOAD_FOLDER'], secure_filename(name)+"."+ext)
+    f.save(path)
+    url = getPushUrl(path)
+    print(url)
+    data = {
+        'url'  : url,
+    }
+    js = json.dumps(data)
+
+    resp = Response(js, status=200, mimetype='application/json')
+    return resp
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
+    args = parser.parse_args()
+    port = args.port
+
+    app.run(host='127.0.0.1', port=port)
